@@ -9,7 +9,10 @@
  */
 int is_dag(uint32_t digraph[], int n_vertices);
 
-uint32_t bfs_explore_node(uint32_t digraph[], int n_vertices,
+/*
+ * Forward declaration of explore_node
+ */
+uint32_t explore_node(uint32_t digraph[], int n_vertices,
 					  int current_node,
 	                  uint32_t *gray_vertices, uint32_t *black_vertices,
 	                  uint32_t current_map);
@@ -72,8 +75,19 @@ int is_dag(uint32_t digraph[], int n_vertices)
 		gray_vertices = 0;
 		black_vertices = 0;
 
-		/* issue recursive lookup */
-		map_dest[v] = bfs_explore_node(digraph, n_vertices, v, &gray_vertices, &black_vertices, map_dest[v]);
+		/*
+		 * issue recursive lookup.
+		 * even though gray/black vertices appear to be reset at each top-level iteration,
+		 * the intent is (1) explicitly map through all top-level nodes to find one that loops onto itself,
+		 * and (2) leave future expansion for map_dest to record possible destinations from each node.
+		 * if the intent is to obtain map_dest, then after one top-level iteration, map_dest[vv] could be
+		 * populated using deeper recursive calls in a lazy manner. note that the check for loop-onto-itself
+		 * will short-circuit this top-level loop as soon as not-a-dag, so map_dest is left incomplete.
+		 * if the intent is to obtain the looped path, then another reference could be carried to record
+		 * the paths corresponding to each map_dest[v] (or just locate the loop and backtrack, in which case
+		 * the top level node # can be always passed in.)
+		 */
+		map_dest[v] = explore_node(digraph, n_vertices, v, &gray_vertices, &black_vertices, map_dest[v]);
 
 		/* printf("after recursion: node %u has targets %u\n", v, map_dest[v]); */
 
@@ -86,23 +100,25 @@ int is_dag(uint32_t digraph[], int n_vertices)
 
 /********************************************************************************
  *
- * bfs_explore_node
- * Explores further node in digraph
+ * explore_node
+ * Recursive explore further node in digraph, tweaked to create a map of destinations from
+ * given top-level root node.
+ *
  * Arguments:
- * 	   digraph					uint32_t[]
- *     n_vertices			    int
- *     current_node 			int
- *     gray_vertices 			uint32_t 			queue of unexplored nodes (inout)
- * 	   black_vertices 			uint32_t	 		list of explored nodes (inout)
- *     current_map				uint32_t	 		map of top-level node's connected nodes (out)
- *	Return: current_map 		uint32_t		... to continue recursion
+ *     digraph                  uint32_t[]
+ *     n_vertices               int
+ *     current_node             int
+ *     gray_vertices            uint32_t       queue of unexplored nodes (inout)
+ *     black_vertices           uint32_t       list of explored nodes (inout)
+ *     current_map              uint32_t       map of top-level node's connected nodes (out)
+ *	Return: current_map         uint32_t   ... to continue recursion
  */
-uint32_t bfs_explore_node(uint32_t digraph[], int n_vertices,
+uint32_t explore_node(uint32_t digraph[], int n_vertices,
 					  int current_node,
 	                  uint32_t *gray_vertices, uint32_t *black_vertices,
 	                  uint32_t current_map) {
 
-	/** breadth-first: map through queue and issue recursive bfs_explore_node **/
+	/** map through queue and issue recursive explore_node **/
 	int vv;
 
 	/* mark this node as explored */
@@ -114,7 +130,7 @@ uint32_t bfs_explore_node(uint32_t digraph[], int n_vertices,
 	/* nodes that this node can lead to are nodes that current_map should contain. */
 	current_map = current_map | digraph[current_node];
 
-	/* printf("bfs_explore_node: current_node = %u (gray = %u, black = %u, cmap = %u)\n", current_node, *gray_vertices, *black_vertices, current_map); */
+	/* printf("explore_node: current_node = %u (gray = %u, black = %u, cmap = %u)\n", current_node, *gray_vertices, *black_vertices, current_map); */
 
 	/** recurse deeper in the queue. **/
 	for(vv = 0; vv < n_vertices; vv++) {
@@ -125,7 +141,7 @@ uint32_t bfs_explore_node(uint32_t digraph[], int n_vertices,
 				*gray_vertices = *gray_vertices & ~(1 << current_node);
 			}
 			else {
-				current_map = bfs_explore_node(digraph, n_vertices, vv, gray_vertices, black_vertices, current_map);
+				current_map = explore_node(digraph, n_vertices, vv, gray_vertices, black_vertices, current_map);
 			}
 		}
 	}
